@@ -2,11 +2,27 @@ package services
 
 import (
 	"github.com/voicurobert/bookstore_users-api/domain/users"
+	"github.com/voicurobert/bookstore_users-api/utils/crypto_utils"
 	"github.com/voicurobert/bookstore_users-api/utils/date_utils"
 	"github.com/voicurobert/bookstore_users-api/utils/errors"
 )
 
-func GetUser(userId int64) (*users.User, *errors.RestError) {
+var (
+	UsersService usersServiceInterface = &usersService{}
+)
+
+type usersService struct {
+}
+
+type usersServiceInterface interface {
+	GetUser(int64) (*users.User, *errors.RestError)
+	CreateUser(users.User) (*users.User, *errors.RestError)
+	UpdateUser(users.User, bool) (*users.User, *errors.RestError)
+	DeleteUser(int64) *errors.RestError
+	Search(string) (users.Users, *errors.RestError)
+}
+
+func (s *usersService) GetUser(userId int64) (*users.User, *errors.RestError) {
 	user := &users.User{ID: userId}
 	if err := user.Get(); err != nil {
 		return nil, err
@@ -14,10 +30,11 @@ func GetUser(userId int64) (*users.User, *errors.RestError) {
 	return user, nil
 }
 
-func CreateUser(user users.User) (*users.User, *errors.RestError) {
+func (s *usersService) CreateUser(user users.User) (*users.User, *errors.RestError) {
 	if err := user.Validate(); err != nil {
 		return nil, err
 	}
+	user.Password = crypto_utils.GetMd5(user.Password)
 	user.DateCreated = date_utils.GetNowAsDBFormat()
 	user.Status = users.StatusActive
 	if err := user.Save(); err != nil {
@@ -26,8 +43,8 @@ func CreateUser(user users.User) (*users.User, *errors.RestError) {
 	return &user, nil
 }
 
-func UpdateUser(user users.User, isPartial bool) (*users.User, *errors.RestError) {
-	current, err := GetUser(user.ID)
+func (s *usersService) UpdateUser(user users.User, isPartial bool) (*users.User, *errors.RestError) {
+	current, err := s.GetUser(user.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -54,12 +71,12 @@ func UpdateUser(user users.User, isPartial bool) (*users.User, *errors.RestError
 	return current, nil
 }
 
-func DeleteUser(userId int64) *errors.RestError {
+func (s *usersService) DeleteUser(userId int64) *errors.RestError {
 	current := &users.User{ID: userId}
 	return current.Delete()
 }
 
-func Search(status string) ([]users.User, *errors.RestError) {
+func (s *usersService) Search(status string) (users.Users, *errors.RestError) {
 	dao := &users.User{}
 	return dao.FindByStatus(status)
 }
