@@ -2,6 +2,7 @@ package users
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/voicurobert/bookstore_oauth-go/oauth"
 	"github.com/voicurobert/bookstore_users-api/domain/users"
 	"github.com/voicurobert/bookstore_users-api/services"
 	"github.com/voicurobert/bookstore_users-api/utils/errors"
@@ -34,6 +35,18 @@ func Create(c *gin.Context) {
 }
 
 func Get(c *gin.Context) {
+	if err := oauth.AuthenticateRequest(c.Request); err != nil {
+		c.JSON(err.Status, err)
+		return
+	}
+	if callerID := oauth.GetCallerID(c.Request); callerID == 0 {
+		err := errors.RestError{
+			Status:  http.StatusUnauthorized,
+			Message: "resource not available",
+		}
+		c.JSON(err.Status, err)
+		return
+	}
 	userId, idErr := getUserId(c.Param("user_id"))
 	if idErr != nil {
 		c.JSON(idErr.Status, idErr)
@@ -44,7 +57,11 @@ func Get(c *gin.Context) {
 		c.JSON(getErr.Status, getErr)
 		return
 	}
-	c.JSON(http.StatusOK, result.Marshall(c.GetHeader("X-Public") == "true"))
+	if oauth.GetCallerID(c.Request) == result.ID {
+		c.JSON(http.StatusOK, result.Marshall(false))
+		return
+	}
+	c.JSON(http.StatusOK, result.Marshall(oauth.IsPublic(c.Request)))
 }
 
 func Search(c *gin.Context) {
