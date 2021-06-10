@@ -5,15 +5,15 @@ import (
 	"github.com/voicurobert/bookstore_oauth-go/oauth"
 	"github.com/voicurobert/bookstore_users-api/domain/users"
 	"github.com/voicurobert/bookstore_users-api/services"
-	"github.com/voicurobert/bookstore_users-api/utils/errors"
+	"github.com/voicurobert/bookstore_utils-go/rest_errors"
 	"net/http"
 	"strconv"
 )
 
-func getUserId(userIdParam string) (int64, *errors.RestError) {
+func getUserId(userIdParam string) (int64, *rest_errors.RestError) {
 	userId, idErr := strconv.ParseInt(userIdParam, 10, 64)
 	if idErr != nil {
-		return 0, errors.NewBadRequestError("user_id should be a number")
+		return 0, rest_errors.NewBadRequestError("user_id should be a number")
 	}
 	return userId, nil
 }
@@ -21,7 +21,7 @@ func getUserId(userIdParam string) (int64, *errors.RestError) {
 func Create(c *gin.Context) {
 	var user users.User
 	if err := c.ShouldBindJSON(&user); err != nil {
-		restErr := errors.NewBadRequestError("invalid json body")
+		restErr := rest_errors.NewBadRequestError("invalid json body")
 		c.JSON(restErr.Status, restErr)
 		return
 	}
@@ -40,7 +40,7 @@ func Get(c *gin.Context) {
 		return
 	}
 	if callerID := oauth.GetCallerID(c.Request); callerID == 0 {
-		err := errors.RestError{
+		err := rest_errors.RestError{
 			Status:  http.StatusUnauthorized,
 			Message: "resource not available",
 		}
@@ -82,7 +82,7 @@ func Update(c *gin.Context) {
 	}
 	var user users.User
 	if err := c.ShouldBindJSON(&user); err != nil {
-		restErr := errors.NewBadRequestError("invalid json body")
+		restErr := rest_errors.NewBadRequestError("invalid json body")
 		c.JSON(restErr.Status, restErr)
 		return
 	}
@@ -106,7 +106,7 @@ func Delete(c *gin.Context) {
 	}
 
 	if err := services.UsersService.DeleteUser(userId); err != nil {
-		c.JSON(idErr.Status, idErr)
+		c.JSON(err.Status, err)
 		return
 	}
 	c.JSON(http.StatusOK, map[string]string{"status": "deleted"})
@@ -115,7 +115,7 @@ func Delete(c *gin.Context) {
 func Login(c *gin.Context) {
 	var req users.LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		restErr := errors.NewBadRequestError("invalid json body")
+		restErr := rest_errors.NewBadRequestError("invalid json body")
 		c.JSON(restErr.Status, restErr)
 		return
 	}
